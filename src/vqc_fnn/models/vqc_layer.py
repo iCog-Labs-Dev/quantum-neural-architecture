@@ -15,8 +15,8 @@ class VQCLayer(nn.Module):
     - Own device and QNode
     - Apply encoding (single or re-uploading)
     - Apply ansatz
-    - Measure observables
-    - Return classical outputs
+    - Measure observables or return full quantum state (optional)
+    - Return classical outputs by default
     """
 
     def __init__(
@@ -51,9 +51,7 @@ class VQCLayer(nn.Module):
             weight_shape = (n_layers, n_qubits)
 
         # Trainable quantum parameters
-        self.weights = nn.Parameter(
-            torch.randn(*weight_shape) * np.pi
-        )
+        self.weights = nn.Parameter(torch.randn(*weight_shape) * np.pi)
 
         # Default measurement: Z expectation on all qubits
         if measurement_fn is None:
@@ -73,43 +71,51 @@ class VQCLayer(nn.Module):
 
     # --------------------------------------------------
     # Quantum circuit definition
-   
-    def _circuit(self, x, weights):
+    # --------------------------------------------------
+    def _circuit(self, x, weights, return_state=False):
         """
         x: 1D tensor (n_features)
         weights: trainable parameters, shape (n_layers, n_qubits)
+        return_state: bool, if True return full quantum state
         """
         if self.encoding_strategy == "single":
             self.encoder(x)
-            self.ansatz_fn(weights)  # full 2D weights
-
+            self.ansatz_fn(weights)
         elif self.encoding_strategy == "reupload":
             for layer in range(self.n_layers):
                 self.encoder(x)
-                # Use 2D weights for a single layer: shape (1, n_qubits)
                 self.ansatz_fn(weights[layer].unsqueeze(0))
         else:
             raise ValueError(f"Unknown encoding strategy: {self.encoding_strategy}")
 
-        return self.measurement_fn()
-
+        if return_state:
+            return qml.state()
+        else:
+            return self.measurement_fn()
 
     # --------------------------------------------------
     # Forward pass
     # --------------------------------------------------
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, return_state: bool = False) -> torch.Tensor:
         """
-        x: (batch_size, n_features) or (n_features,)
-        returns: (batch_size, n_measurements)
-        """
+        Forward pass.
 
+        Args:
+            x (torch.Tensor): (batch_size, n_features) or (n_features,)
+            return_state (bool): if True, returns full quantum states instead of observables
+
+        Returns:
+            torch.Tensor: classical outputs (batch_size, n_measurements) 
+                          or quantum states (batch_size, 2**n_qubits)
+        """
         if x.ndim == 1:
             x = x.unsqueeze(0)
 
         outputs = []
         for sample in x:
-            out = self.qnode(sample, self.weights)
+            out = self.qnode(sample, self.weights, return_state=return_state)
 
+            # If measurement returns list/tuple, stack it
             if isinstance(out, (list, tuple)):
                 out = torch.stack(out)
 
