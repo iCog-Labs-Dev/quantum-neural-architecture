@@ -1,0 +1,60 @@
+# Generalization Metrics Summary
+
+This document provides a summary of the metrics implemented in `generalization_metrics.py`, instructions on gradient collection for Fisher Information, and the interpretation of these metrics.
+
+## 1. Summary of Metrics
+
+### A. Empirical Fisher Information Matrix (F)
+- **Formula:** F = (1/N) * sum_i (g_i @ g_i.T)
+- **Description:** Represents the covariance of the gradients. It captures the local geometry of the loss landscape at the current parameter values.
+
+### B. Trace-normalized Fisher (F_hat)
+- **Formula:** F_hat = (d / Tr(F)) * F
+- **Description:** Rescales the Fisher matrix so that its trace equals the total number of parameters `d`. This normalization makes the effective dimension calculations independent of the absolute scale of the gradients.
+
+### C. Effective Dimension (d_eff)
+- **Formula:** d_eff(n) = sum_i (n * λ_i / (1 + n * λ_i))
+- **Description:** A measure of the "capacity" of the model relative to the number of data points `n`. It uses the eigenvalues (λ_i) of the trace-normalized Fisher matrix.
+
+### D. PAC-style Generalization Bound
+- **Formula:** sqrt( (d_eff * log(n) + 2 * log(1/δ)) / (2n) )
+- **Description:** Provides a theoretical upper bound on the generalization gap (the difference between training and test error). It depends on the effective dimension and the number of training samples.
+
+### E. Spectral Entropy
+- **Formula:** Normalized Shannon entropy of the Fisher matrix eigenvalues.
+- **Description:** Measures the distribution of the "importance" of different parameter directions.
+
+---
+
+## 2. Gradient Collection for Fisher Information
+
+To calculate the Empirical Fisher Information, you MUST collect **individual sample gradients**, not batch gradients.
+
+### Steps for Collection:
+1.  **Iterate through samples:** For each sample `(x_i, y_i)` in the dataset:
+    - Perform a forward pass: `output = model(x_i)`.
+    - Calculate the loss for only this sample: `loss = criterion(output, y_i)`.
+    - Perform backpropagation: `loss.backward()`.
+2.  **Extract Gradients:**
+    - For every trainable parameter in the model, get its current gradient (`param.grad`).
+    - Flatten and concatenate all individual parameter gradients into a single long vector `g_i`.
+3.  **Accumulate:**
+    - Add the outer product of this vector to a running sum: `S += outer(g_i, g_i)`.
+4.  **Reset Gradients:**
+    - CRITICAL: Call `model.zero_grad()` after each sample to ensure gradients don't accumulate across samples for the Fisher calculation.
+
+---
+
+## 3. Interpretation of Metrics
+
+### Effective Dimension (d_eff)
+- **Higher Value:** Indicates the model is using more of its parameter space to fit the data. If `d_eff` is close to the total parameter count `d`, the model might be at risk of overfitting or is very complex relative to the data.
+- **Lower Value:** Suggests the model has a simplified representation or is well-regularized. Lower `d_eff` relative to `n` typically indicates better generalization potential.
+
+### Generalization Bound
+- **Value Trend:** A decreasing bound over epochs suggests that the model is becoming more "stable" and the gap between training performance and unseen data performance is likely shrinking.
+- **Absolute Value:** Smaller values (closer to 0) are better, indicating a tighter theoretical guarantee on generalization.
+
+### Spectral Entropy
+- **High Entropy (near 1.0):** The spectrum is uniform (flat). This implies a "flat" loss landscape where many directions in parameter space are equally important. Flat minima are often associated with better generalization.
+- **Low Entropy (near 0.0):** The spectrum is "spiked" (sharp). A few eigenvalues dominate, meaning the loss changes very rapidly in some directions but not others. This "sharp" landscape is often associated with poorer generalization.

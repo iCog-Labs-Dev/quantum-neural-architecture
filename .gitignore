@@ -17,3 +17,6 @@ datasets/
 results/
 logs/
 checkpoints/
+
+penny/
+
