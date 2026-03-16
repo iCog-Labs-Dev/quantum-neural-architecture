@@ -7,7 +7,7 @@ import numpy as np
 import json
 
 from ..data.parity_dataset import load_parity_dataset
-from ..utility.generalization_metrics import FisherGeneralizationMetric
+from ....utility.generalization_metrics import FisherGeneralizationMetric
 from ..attention.quantum_self_attention import QuantumSelfAttention
 from ..models.classical_transformer import ClassicalSelfAttention
 
