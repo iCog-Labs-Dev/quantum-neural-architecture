@@ -4,6 +4,11 @@ import torch
 
 class StronglyEntanglingAnsatz:
     """
+    Data re-uploading strongly entangling ansatz.
+
+    Encodes classical input  directly into rotations,
+    combined with trainable variational parameters.
+
     Args:
         n_qubits (int): Number of qubits in the circuit.
         n_layers (int, optional): Number of repeated rotation + entanglement layers. Default: 2

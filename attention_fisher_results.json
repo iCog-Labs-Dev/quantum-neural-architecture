@@ -1,9 +1,9 @@
 {
     "quantum": {
-        "effective_dimension": 1.9651458416902088,
-        "generalization_bound": 0.35061183562027176,
-        "spectral_entropy": 0.036801702832694703,
-        "spectral_entropy_normalized": 0.008472226368047092
+        "effective_dimension": 1.9638294025611107,
+        "generalization_bound": 0.35053838573747337,
+        "spectral_entropy": 0.03658402837267104,
+        "spectral_entropy_normalized": 0.008422114901513959
     },
     "classical": {
         "effective_dimension": 1.984526540587709,

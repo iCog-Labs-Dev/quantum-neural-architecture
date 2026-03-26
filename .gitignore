@@ -20,3 +20,5 @@ checkpoints/
 
 penny/
 
+*.json
+
