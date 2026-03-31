@@ -2,180 +2,123 @@ import torch
 from torch import nn
 import pennylane as qml
 import numpy as np
-from typing import Optional, Callable, Dict, Tuple, Any, Union, List
+from typing import Callable, Optional, Literal
 
+from .input_encoder import InputEncoder
 
-from .input_encoder import InputEncoder 
 
 class VQCLayer(nn.Module):
     """
-    Variational Quantum Circuit (VQC) PyTorch layer that integrates the InputEncoder.
-    
-    This layer is designed for efficiency:
-    - It caches QNodes and PyTorch weights based on the required number of qubits (n_qubits).
-    - It uses pure PyTorch tensors for the forward pass, maintaining autograd compatibility.
+    Variational Quantum Circuit layer.
+
+    Responsibilities:
+    - Own device and QNode
+    - Apply encoding (single or re-uploading)
+    - Apply ansatz
+    - Measure observables or return full quantum state (optional)
+    - Return classical outputs by default
     """
 
     def __init__(
         self,
-        encoder: Optional[InputEncoder] = None,
+        n_qubits: int,
+        encoder: InputEncoder,
         n_layers: int = 1,
-        ansatz_fn: Optional[Callable[[Union[torch.Tensor, np.ndarray], List[int]], None]] = None,
-        weight_shape_fn: Optional[Callable[[int], Tuple[int, ...]]] = None,
+        encoding_strategy: Literal["single", "reupload"] = "reupload",
+        ansatz_fn: Optional[Callable] = None,
         measurement_fn: Optional[Callable[[int], list]] = None,
         device_type: str = "default.qubit",
     ):
         super().__init__()
-       
-        self.encoder = encoder or InputEncoder(device_type=device_type)
-        self.n_layers = n_layers
-        self.device_type = device_type
-        self.ansatz_fn = ansatz_fn
-        self.weight_shape_fn = weight_shape_fn
 
-        
+        self.n_qubits = n_qubits
+        self.n_layers = n_layers
+        self.encoding_strategy = encoding_strategy
+        self.encoder = encoder
+
+        self.device = qml.device(device_type, wires=n_qubits)
+
+        # Default ansatz: BasicEntanglerLayers
+        if ansatz_fn is None:
+            self.ansatz_fn = lambda weights: qml.BasicEntanglerLayers(
+                weights, wires=range(n_qubits)
+            )
+            weight_shape = qml.BasicEntanglerLayers.shape(
+                n_layers=n_layers, n_wires=n_qubits
+            )
+        else:
+            self.ansatz_fn = ansatz_fn
+            weight_shape = (n_layers, n_qubits)
+
+        # Trainable quantum parameters
+        self.weights = nn.Parameter(torch.randn(*weight_shape) * np.pi)
+
+        # Default measurement: Z expectation on all qubits
         if measurement_fn is None:
-            self.measurement_fn = lambda n_qubits: [qml.expval(qml.PauliZ(i)) for i in range(n_qubits)]
+            self.measurement_fn = lambda: [
+                qml.expval(qml.PauliZ(i)) for i in range(n_qubits)
+            ]
         else:
             self.measurement_fn = measurement_fn
 
-        self.qnode_cache: Dict[Tuple[int, str, str], Dict[str, Any]] = {}
-        self.weights_dict: Dict[int, nn.Parameter] = {}
+        # Define QNode ONCE
+        self.qnode = qml.QNode(
+            self._circuit,
+            self.device,
+            interface="torch",
+            diff_method="parameter-shift",
+        )
 
-    def _default_weight_shape(self, n_qubits: int) -> Tuple[int, ...]:
-        """Provides default shape for BasicEntanglerLayers."""
-        return qml.BasicEntanglerLayers.shape(n_layers=self.n_layers, n_wires=n_qubits)
-
-    @staticmethod
-    def _next_power_of_two_int(n: int) -> int:
-        """Utility: compute next power of two (pure python)."""
-        if n <= 0: return 1
-        if (n & (n - 1)) == 0: return n
-        return 1 << (n.bit_length())
-    
-    def _ensure_qnode_and_weights(self, n_qubits: int, embedding_type: str, gate_type: str):
-        key = (n_qubits, embedding_type, gate_type)
-
-        if n_qubits not in self.weights_dict:
-            shape = tuple(self.weight_shape_fn(n_qubits)) if self.weight_shape_fn else self._default_weight_shape(n_qubits)
-            param = nn.Parameter(torch.randn(*shape) * np.pi)
-            self.register_parameter(f"weights_{n_qubits}", param)
-            self.weights_dict[n_qubits] = param
-
-        if key not in self.qnode_cache:
-            dev = qml.device(self.device_type, wires=n_qubits)
-            wires = list(range(n_qubits))
-
-            embedding_type_local = embedding_type
-            gate_type_local = gate_type
-            ansatz_local = self.ansatz_fn
-            measurement_fn_local = self.measurement_fn
-
-           
-            @qml.qnode(dev, interface="torch", diff_method="parameter-shift")
-            def circuit(weights, x_data):
-                """
-                weights: torch tensor shaped per ansatz
-                x_data: 1D torch tensor containing the classical input sample (potentially padded)
-                """
-                
-    
-                if embedding_type_local == "angle":
-                    
-                    qml.AngleEmbedding(x_data, wires=wires, rotation=gate_type_local)
-
-                elif embedding_type_local == "amplitude":
-                   
-                    qml.AmplitudeEmbedding(x_data, wires=wires, normalize=True, pad_with=0.0)
-
-                else:
-                    raise ValueError(f"Unsupported embedding_type: {embedding_type_local}")
-
-            
-                if ansatz_local is None:
-                    qml.BasicEntanglerLayers(weights, wires=wires)
-                else:
-                    ansatz_local(weights, wires)
-
-
-                measurements = measurement_fn_local(n_qubits)
-                return measurements
-
-            self.qnode_cache[key] = {"device": dev, "qnode": circuit, "wires": wires}
-
-        return self.qnode_cache[key], self.weights_dict[n_qubits]
-
-
-
-    def forward(self, x: torch.Tensor, embedding_type: str = "angle", gate_type: str = "Y") -> torch.Tensor:
+    # --------------------------------------------------
+    # Quantum circuit definition
+    # --------------------------------------------------
+    def _circuit(self, x, weights, return_state=False):
         """
-        x: tensor (batch_size, n_features) or (n_features,)
-        Returns: tensor (batch_size, n_measurements)
+        x: 1D tensor (n_features)
+        weights: trainable parameters, shape (n_layers, n_qubits)
+        return_state: bool, if True return full quantum state
         """
-        
-        
-        x = x.to(dtype=torch.get_default_dtype())
-        single = False
+        if self.encoding_strategy == "single":
+            self.encoder(x)
+            self.ansatz_fn(weights)
+        elif self.encoding_strategy == "reupload":
+            for layer in range(self.n_layers):
+                self.encoder(x)
+                self.ansatz_fn(weights[layer].unsqueeze(0))
+        else:
+            raise ValueError(f"Unknown encoding strategy: {self.encoding_strategy}")
+
+        if return_state:
+            return qml.state()
+        else:
+            return self.measurement_fn()
+
+    # --------------------------------------------------
+    # Forward pass
+    # --------------------------------------------------
+    def forward(self, x: torch.Tensor, return_state: bool = False) -> torch.Tensor:
+        """
+        Forward pass.
+
+        Args:
+            x (torch.Tensor): (batch_size, n_features) or (n_features,)
+            return_state (bool): if True, returns full quantum states instead of observables
+
+        Returns:
+            torch.Tensor: classical outputs (batch_size, n_measurements) 
+                          or quantum states (batch_size, 2**n_qubits)
+        """
         if x.ndim == 1:
             x = x.unsqueeze(0)
-            single = True
 
-        batch_out = []
-        batch_size = x.shape[0]
+        outputs = []
+        for sample in x:
+            out = self.qnode(sample, self.weights, return_state=return_state)
 
-        for i in range(batch_size):
-            sample = x[i]  
-            length = sample.numel()
+            # If measurement returns list/tuple, stack it
+            if isinstance(out, (list, tuple)):
+                out = torch.stack(out)
 
-           
-            if embedding_type == "amplitude":
-                next_pow2 = self._next_power_of_two_int(length)
-                
-            
-                num_wires = int(np.log2(next_pow2)) if next_pow2 > 1 else 1
-                
-              
-                if next_pow2 != length:
-                    pad = torch.zeros(next_pow2 - length, dtype=sample.dtype, device=sample.device)
-                    sample_arg = torch.cat([sample, pad], dim=0)
-                else:
-                    sample_arg = sample
-                
-                n_qubits = num_wires
-            else:
-               
-                n_qubits = int(length)
-                sample_arg = sample
+            outputs.append(out)
 
-          
-            qnode_meta, weights_param = self._ensure_qnode_and_weights(n_qubits, embedding_type, gate_type)
-            qnode = qnode_meta["qnode"]
-
-            
-            out = qnode(weights_param, sample_arg) 
-
-            
-            if torch.is_tensor(out):
-                out_t = out.view(-1)
-            elif isinstance(out, (list, tuple)):
-                out_t = torch.stack([torch.as_tensor(o, dtype=sample.dtype, device=sample.device) for o in out]).view(-1)
-            else:
-                out_t = torch.as_tensor(np.array(out), dtype=sample.dtype, device=sample.device).view(-1)
-
-            batch_out.append(out_t)
-
-        batch_out = torch.stack(batch_out, dim=0)
-        if single:
-            return batch_out.squeeze(0)
-        return batch_out
-
-        
-    def backward(self, grad_output):
-        """
-        Optional: define backward pass if using custom gradients.
-        For standard PyTorch + Pennylane, autograd handles gradients automatically.
-        """
-        pass
-
-
-    
+        return torch.stack(outputs).to(x.dtype)

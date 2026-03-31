@@ -1,6 +1,3 @@
-# =====================================
-# Reproducibility utilities
-# =====================================
 import random
 import numpy as np
 import torch
@@ -10,13 +7,14 @@ def set_seed(seed=42):
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
 
-# =====================================
+# =======================
 # Imports
-# =====================================
+# =======================
 from torch.utils.data import TensorDataset, DataLoader, random_split
 from torch import nn, optim
 from sklearn.datasets import load_iris
@@ -24,20 +22,12 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import time
 
-from models.hybrid_qnn import HybridQNN
 from models.classical_mlp import ClassicalMLP
 
 
-# =====================================
-# Parameter counting utility
-# =====================================
-def count_parameters(model):
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-
-# =====================================
-# Data loading
-# =====================================
+# =======================
+# Data loading (IDENTICAL to QNN)
+# =======================
 def get_iris_loaders(batch_size=16, val_ratio=0.2, test_ratio=0.2, seed=42):
     iris = load_iris()
     X = iris.data
@@ -70,9 +60,9 @@ def get_iris_loaders(batch_size=16, val_ratio=0.2, test_ratio=0.2, seed=42):
     return train_loader, val_loader, test_loader
 
 
-# =====================================
+# =======================
 # Evaluation
-# =====================================
+# =======================
 def evaluate_model(model, loader, device):
     model.eval()
     criterion = nn.CrossEntropyLoss()
@@ -92,10 +82,11 @@ def evaluate_model(model, loader, device):
     return total_loss / total, correct / total
 
 
-# =====================================
+# =======================
 # Training
-# =====================================
-def train_hybrid_qnn(
+# =======================
+def train_classical_mlp(
+    hidden_dim=5,          # 🔑 parameter-matching knob
     n_epochs=10,
     batch_size=16,
     learning_rate=0.01,
@@ -104,7 +95,7 @@ def train_hybrid_qnn(
     set_seed(seed)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"\nUsing device: {device}")
+    print(f"Using device: {device}")
 
     train_loader, val_loader, test_loader = get_iris_loaders(
         batch_size=batch_size,
@@ -114,41 +105,13 @@ def train_hybrid_qnn(
     num_features = train_loader.dataset.dataset[0][0].shape[0]
     num_classes = 3
 
-    # -------------------------
-    # Hybrid QNN
-    # -------------------------
-    qnn_model = HybridQNN(
-        num_features=num_features,
-        num_classes=num_classes,
-        n_vqc_layers=6,
-        embedding_type="angle",
-        gate_type="Y",
-        encoding_strategy="reupload",
-        device_type="default.qubit"
-    ).to(device)
-
-    qnn_param_count = count_parameters(qnn_model)
-    print(f"Hybrid QNN parameter count: {qnn_param_count}")
-
-    # -------------------------
-    # Classical MLP (parameter-matched)
-    # -------------------------
-    hidden_dim = 5  # 🔁 adjust this to match params
-
-    mlp_model = ClassicalMLP(
+    model = ClassicalMLP(
         input_dim=num_features,
         hidden_dim=hidden_dim,
         output_dim=num_classes
     ).to(device)
 
-    mlp_param_count = count_parameters(mlp_model)
-    print(f"Classical MLP parameter count: {mlp_param_count}")
-    print(f"Parameter difference: {abs(qnn_param_count - mlp_param_count)}")
-
-    # -------------------------
-    # Train QNN only (baseline)
-    # -------------------------
-    optimizer = optim.Adam(qnn_model.parameters(), lr=learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.CrossEntropyLoss()
 
     history = {
@@ -161,14 +124,14 @@ def train_hybrid_qnn(
     start_time = time.time()
 
     for epoch in range(1, n_epochs + 1):
-        qnn_model.train()
+        model.train()
         total_loss, correct, total = 0.0, 0, 0
 
         for X, y in train_loader:
             X, y = X.to(device), y.to(device)
 
             optimizer.zero_grad()
-            outputs = qnn_model(X)
+            outputs = model(X)
             loss = criterion(outputs, y)
             loss.backward()
             optimizer.step()
@@ -180,7 +143,7 @@ def train_hybrid_qnn(
 
         train_loss = total_loss / total
         train_acc = correct / total
-        val_loss, val_acc = evaluate_model(qnn_model, val_loader, device)
+        val_loss, val_acc = evaluate_model(model, val_loader, device)
 
         history["train_loss"].append(train_loss)
         history["val_loss"].append(val_loss)
@@ -198,15 +161,15 @@ def train_hybrid_qnn(
     end_time = time.time()
     print(f"\nTraining finished in {end_time - start_time:.2f} seconds.")
 
-    test_loss, test_acc = evaluate_model(qnn_model, test_loader, device)
+    test_loss, test_acc = evaluate_model(model, test_loader, device)
     print(f"\nFinal Test Loss: {test_loss:.4f} | Test Accuracy: {test_acc:.4f}")
 
-    return qnn_model, history, n_epochs
+    return model, history, n_epochs
 
 
-# =====================================
+# =======================
 # Plotting
-# =====================================
+# =======================
 def plot_history(history, n_epochs):
     epochs = range(1, n_epochs + 1)
     plt.figure(figsize=(10, 4))
@@ -214,18 +177,19 @@ def plot_history(history, n_epochs):
     plt.plot(epochs, history["val_acc"], label="Val Acc")
     plt.xlabel("Epoch")
     plt.ylabel("Accuracy")
-    plt.title("Hybrid QNN Training")
+    plt.title("Classical MLP Training")
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
     plt.show()
 
 
-# =====================================
+# =======================
 # Main
-# =====================================
+# =======================
 if __name__ == "__main__":
-    model, history, n_epochs = train_hybrid_qnn(
+    model, history, n_epochs = train_classical_mlp(
+        hidden_dim=5,     
         n_epochs=10,
         batch_size=8,
         learning_rate=0.01,
@@ -233,4 +197,3 @@ if __name__ == "__main__":
     )
 
     plot_history(history, n_epochs)
-
