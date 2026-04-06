@@ -1,16 +1,9 @@
-"""
-Central VQE circuit model.
-
-Replaces VQCModel from vqc_fnn.  The measurement changes from
-``expval(PauliZ(0))`` to ``expval(full_Hamiltonian)``, and there are
-no input features -- only variational parameters.
-"""
 
 import pennylane as qml
 from pennylane import numpy as np
 
-from ChemistryEnvironment import ChemistryEnvironment
-from PhysicsAnsatz import PhysicsAnsatz
+from .ChemistryEnvironment import ChemistryEnvironment
+from .PhysicsAnsatz import PhysicsAnsatz
 
 
 class VQEModel:
@@ -36,20 +29,16 @@ class VQEModel:
         self.device = qml.device(device_name, wires=self.n_qubits)
         self._qnode = qml.QNode(self._circuit, self.device)
 
-    # ------------------------------------------------------------------
+   
     # Circuit
-    # ------------------------------------------------------------------
-
     def _circuit(self, params):
         wires = range(self.n_qubits)
         self.env.prepare_state(wires)
         self.ansatz.apply(params, wires)
         return qml.expval(self.env.hamiltonian)
 
-    # ------------------------------------------------------------------
+    
     # Public API
-    # ------------------------------------------------------------------
-
     def forward(self, params):
         """Return the molecular energy (Hartrees) for the given parameters."""
         return self._qnode(params)

@@ -1,11 +1,3 @@
-"""
-Molecular physics setup for VQE.
-
-Replaces the data-driven EmbeddingLayer from vqc_fnn.  Instead of encoding
-classical features, it builds the molecular Hamiltonian and Hartree-Fock
-initial state that define the quantum chemistry problem.
-"""
-
 import numpy as np
 import pennylane as qml
 
@@ -61,9 +53,6 @@ class ChemistryEnvironment:
         """Apply the Hartree-Fock basis state to the circuit (replaces embedding)."""
         qml.BasisState(self.hf_state, wires=wires)
 
-    # ------------------------------------------------------------------
-    # Convenience factories
-    # ------------------------------------------------------------------
 
     @classmethod
     def hydrogen(cls, bond_length=1.4):
@@ -81,9 +70,6 @@ class ChemistryEnvironment:
                                 0.0, 0.0,  bond_length / 2])
         return cls(symbols, coordinates)
 
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _atomic_number(symbol):

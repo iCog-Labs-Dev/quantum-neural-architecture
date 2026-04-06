@@ -8,9 +8,9 @@ from .QAOAModel import QAOAModel
 from .QAOAOptimizer import QAOAOptimizer
 
 __all__ = [
-    "Concept",
-    "Context",
-    "ConceptLattice",
+    "concept",
+    "context",
+    "lattice",
     "ProblemFormulator",
     "StatePreparation",
     "QAOAAnsatz",

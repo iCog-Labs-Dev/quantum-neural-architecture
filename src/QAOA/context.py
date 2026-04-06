@@ -1,7 +1,8 @@
 import pandas as pd
 from itertools import combinations
-from concept import Concept
-from lattice import ConceptLattice
+
+from .concept import Concept
+from .lattice import ConceptLattice
 
 
 class Context:

@@ -13,8 +13,8 @@ together into PennyLane QNodes and exposes two execution modes:
 import pennylane as qml
 from pennylane import numpy as np
 
-from StatePreparation import StatePreparation
-from QAOAAnsatz import QAOAAnsatz
+from .StatePreparation import StatePreparation
+from .QAOAAnsatz import QAOAAnsatz
 
 
 class QAOAModel:
@@ -50,10 +50,8 @@ class QAOAModel:
 
         self._expval_qnode = qml.QNode(self._expval_circuit, self.device)
 
-    # ------------------------------------------------------------------
+    
     # Circuit definitions
-    # ------------------------------------------------------------------
-
     def _expval_circuit(self, params):
         """Circuit that returns <H_cost>."""
         wires = range(self.n_qubits)
@@ -70,10 +68,8 @@ class QAOAModel:
         self.ansatz.apply(gammas, betas)
         return qml.sample()
 
-    # ------------------------------------------------------------------
+    
     # Public API
-    # ------------------------------------------------------------------
-
     def forward(self, params):
         """Evaluate the cost Hamiltonian expectation (used by the optimiser)."""
         return self._expval_qnode(params)

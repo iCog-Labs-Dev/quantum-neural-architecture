@@ -1,10 +1,3 @@
-"""
-Chemistry-aware variational ansatz for VQE.
-
-Replaces the generic AnsatzLayer from vqc_fnn.  Instead of
-StronglyEntanglingLayers (which ignore electron-number conservation),
-this applies physics-motivated excitation gates.
-"""
 
 import numpy as np
 import pennylane as qml

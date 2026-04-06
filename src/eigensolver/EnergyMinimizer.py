@@ -1,11 +1,3 @@
-"""
-Classical optimisation loop for VQE.
-
-Replaces the Trainer from vqc_fnn.  There are no datasets and no labels --
-the circuit output (molecular energy in Hartrees) IS the cost function.
-The optimizer drives that energy as low as physically possible.
-"""
-
 import pennylane as qml
 from pennylane import numpy as np
 
@@ -40,16 +32,10 @@ class EnergyMinimizer:
             )
         self.opt = _OPTIMIZERS[key](stepsize=stepsize)
 
-    # ------------------------------------------------------------------
-    # Cost -- no data, no labels, just raw energy
-    # ------------------------------------------------------------------
 
     def cost_function(self, params):
         return self.model.forward(params)
 
-    # ------------------------------------------------------------------
-    # Optimisation loop
-    # ------------------------------------------------------------------
 
     def fit(self, epochs=100, conv_tol=1e-6, verbose_every=5):
         """

@@ -46,17 +46,12 @@ class QAOAOptimizer:
         self.optimal_params = None
         self.cost_history = []
 
-    # ------------------------------------------------------------------
     # Cost (no labels -- circuit expectation IS the cost)
-    # ------------------------------------------------------------------
 
     def cost_function(self, params):
         return self.model.forward(params)
 
-    # ------------------------------------------------------------------
     # Training loop
-    # ------------------------------------------------------------------
-
     def fit(self, p=1, epochs=80, verbose_every=10):
         """
         Initialise gamma/beta angles and run the optimisation loop.
@@ -88,10 +83,8 @@ class QAOAOptimizer:
         self.optimal_params = params
         return {"params": params, "cost_history": self.cost_history}
 
-    # ------------------------------------------------------------------
+    
     # Solution extraction
-    # ------------------------------------------------------------------
-
     def solve(self, shots=1024):
         """
         Sample the optimised circuit and return the best bitstring.

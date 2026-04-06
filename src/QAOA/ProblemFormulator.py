@@ -32,10 +32,8 @@ class ProblemFormulator:
 
         self._build()
 
-    # ------------------------------------------------------------------
+    
     # Public helpers
-    # ------------------------------------------------------------------
-
     def get_cost_hamiltonian(self):
         return self.cost_hamiltonian
 
@@ -46,10 +44,8 @@ class ProblemFormulator:
         """Constant energy shift dropped from the Hamiltonian."""
         return self.offset
 
-    # ------------------------------------------------------------------
+    
     # QUBO -> Ising conversion
-    # ------------------------------------------------------------------
-
     def _build(self):
         """Run the substitution and store both Hamiltonians."""
         self.cost_hamiltonian, self.offset = self.qubo_to_hamiltonian(self.Q)
