@@ -115,3 +115,53 @@ def generate_cyclical_dataset(n_samples=300, noise_std=0.5, seed=42):
         (hours_clean >= 21) | (hours_clean < 5), 1.0, 0.0
     )
     return hours, labels
+
+
+# ------------------------------------------------------------------
+# Spherical dataset (3-D Cartesian on unit sphere)
+# ------------------------------------------------------------------
+
+def cartesian_to_spherical(X):
+    """
+    Convert 3D Cartesian (x, y, z) to spherical (theta, phi).
+    r is assumed to be 1 for points on the unit sphere.
+
+    theta: polar angle in [0, pi] (angle from z-axis).
+    phi: azimuthal angle in [0, 2*pi] (angle in x-y plane).
+    """
+    x, y, z = X[:, 0], X[:, 1], X[:, 2]
+    r = np.sqrt(x**2 + y**2 + z**2)
+    # Clip to avoid numerical errors with arccos
+    theta = np.arccos(np.clip(z / r, -1.0, 1.0))
+    phi = np.arctan2(y, x) % (2 * np.pi)
+    return np.column_stack([theta, phi])
+
+
+def generate_spherical_dataset(n_samples=400, noise=0.1, seed=42):
+    """
+    Generate points on a 3D unit sphere.
+    Class 1: northern hemisphere (z > 0).
+    Class 0: southern hemisphere (z < 0).
+    """
+    rng = np.random.default_rng(seed)
+
+    # Uniform sampling on a sphere
+    phi = rng.uniform(0, 2 * np.pi, n_samples)
+    cos_theta = rng.uniform(-1, 1, n_samples)
+    theta = np.arccos(cos_theta)
+
+    x = np.sin(theta) * np.cos(phi)
+    y = np.sin(theta) * np.sin(phi)
+    z = np.cos(theta)
+
+    X = np.column_stack([x, y, z])
+    # Add noise
+    X += rng.normal(0, noise, X.shape)
+    # Re-normalize to unit sphere (optional, but keeps it "spherical")
+    norms = np.linalg.norm(X, axis=1, keepdims=True)
+    X /= norms
+
+    # Label based on the original z position (before noise/normalization)
+    labels = np.where(cos_theta > 0, 1.0, 0.0)
+
+    return X, labels

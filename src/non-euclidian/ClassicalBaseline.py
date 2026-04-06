@@ -57,8 +57,10 @@ class ClassicalBaseline:
 
         Returns
         -------
-        dict  {train_history, val_history}
+        dict  {train_history, val_history, fisher_history}
         """
+        from utility.generalization_metrics import FisherGeneralizationMetric
+
         X_t = torch.tensor(X_train, dtype=torch.float32)
         Y_t = torch.tensor(Y_train, dtype=torch.float32)
 
@@ -67,8 +69,31 @@ class ClassicalBaseline:
 
         train_history = []
         val_history = []
+        fisher_history = []
+        
+        fisher = FisherGeneralizationMetric(delta=0.1)
 
         for epoch in range(epochs):
+            self.model.train()
+            
+            # Fisher Information accumulation (at wt)
+            fisher.reset()
+            for i in range(len(X_t)):
+                optimizer.zero_grad()
+                pred_i = self.model(X_t[i].unsqueeze(0))
+                loss_i = criterion(pred_i, Y_t[i].unsqueeze(0))
+                loss_i.backward()
+                
+                # Collect gradient vector
+                g_flat = torch.cat([p.grad.detach().view(-1)
+                                     for p in self.model.parameters()
+                                     if p.grad is not None]).to(torch.float64)
+                fisher.accumulate(g_flat)
+            
+            m = fisher.compute()
+            fisher_history.append(m)
+
+            # Optimization step
             self.model.train()
             optimizer.zero_grad()
             preds = self.model(X_t)
@@ -82,12 +107,19 @@ class ClassicalBaseline:
                 val_history.append(val_loss)
 
             if verbose_every and (epoch + 1) % verbose_every == 0:
-                msg = f"Epoch {epoch + 1:4d} | Train loss: {loss.item():.5f}"
+                eff_dim = m.get("effective_dimension", 0.0)
+                gen_bound = m.get("generalization_bound", 0.0)
+                spec_entro = m.get("spectral_entropy_normalized", 0.0)
+                msg = f"Epoch {epoch + 1:4d} | Train loss: {loss.item():.5f} | Eff dim: {eff_dim:.2f} | Gen bound: {gen_bound:.4f} | Spec entro: {spec_entro:.4f}"
                 if val_history:
                     msg += f" | Val loss: {val_history[-1]:.5f}"
                 print(msg)
 
-        return {"train_history": train_history, "val_history": val_history}
+        return {
+            "train_history": train_history,
+            "val_history": val_history,
+            "fisher_history": fisher_history
+        }
 
     # ------------------------------------------------------------------
     # Inference
