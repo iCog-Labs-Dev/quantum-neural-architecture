@@ -2,10 +2,6 @@
 experiment_sphere.py  --  VQC vs FFNN on 3D spherical data
 with Fisher-based generalization metrics (no batching).
 
-Parameter counts (matched):
-  VQC : StronglyEntanglingLayers(3 qubits, 3 layers) = 3x3x3 = 27 params
-  FFNN: Linear(3->5) + Linear(5->1)                  = 3*5+5 + 5*1+1 = 26 params
-
 Metrics computed per epoch via per-sample gradient accumulation:
   - Effective dimension
   - PAC-style generalization bound
@@ -36,9 +32,7 @@ from ClassicalBaseline import ClassicalBaseline
 from data_utils import generate_spherical_dataset, cartesian_to_spherical
 
 
-# -----------------------------------------------------------------------
 # Data
-# -----------------------------------------------------------------------
 
 def load_data(n_samples=400, noise=0.05, seed=42):
     X, y = generate_spherical_dataset(n_samples=n_samples, noise=noise, seed=seed)
@@ -52,9 +46,9 @@ def load_data(n_samples=400, noise=0.05, seed=42):
     return X_train, X_test, y_train, y_test, Xs_train, Xs_test, ys_train, ys_test, X, y
 
 
-# -----------------------------------------------------------------------
-# VQC  -- 3 qubits x 3 layers x 3 = 27 params
-# -----------------------------------------------------------------------
+
+# VQC  -- 3 qubits x 2 layers x 3 = 18 params
+
 
 def train_vqc(Xs_train, ys_train, Xs_test, ys_test,
               n_qubits=3, n_layers=2, epochs=10, stepsize=0.05):
@@ -90,9 +84,6 @@ def train_vqc(Xs_train, ys_train, Xs_test, ys_test,
     return results, acc
 
 
-# -----------------------------------------------------------------------
-# FFNN  -- Linear(3->5) + Linear(5->1) = 26 params
-# -----------------------------------------------------------------------
 
 class TinyFFNN(nn.Module):
     def __init__(self, n_input=3, hidden=5):
@@ -103,12 +94,10 @@ class TinyFFNN(nn.Module):
     def forward(self, x):
         return torch.sigmoid(self.fc2(torch.relu(self.fc1(x)))).squeeze(-1)
 
-
+#28 params
 def train_classical(X_train, y_train, X_test, y_test, epochs=10, lr=0.05):
     net_wrapper = ClassicalBaseline(n_input=X_train.shape[1], hidden_size=3, lr=lr)
-    # Patch the internal model to match the TinyFFNN structure if needed, 
-    # but ClassicalBaseline already creates a 2-layer net. 
-    # Let's just use ClassicalBaseline as is for consistency.
+    
     
     print("\n=== Classical FFNN ({} params) ===".format(net_wrapper.param_count()))
 
@@ -126,12 +115,10 @@ def train_classical(X_train, y_train, X_test, y_test, epochs=10, lr=0.05):
     return results, acc
 
 
-# -----------------------------------------------------------------------
+
 # Plots
-# -----------------------------------------------------------------------
 
 def _extract(res, key):
-    # results from Trainer/ClassicalBaseline now use 'fisher_history'
     return [m.get(key, 0.0) for m in res["fisher_history"]]
 
 
@@ -179,9 +166,8 @@ def plot_results(X, y, vqc_res, cls_res, vqc_acc, cls_acc):
     print("Figure saved to sphere_results.png")
 
 
-# -----------------------------------------------------------------------
 # Main
-# -----------------------------------------------------------------------
+
 
 def main():
     (X_train, X_test, y_train, y_test,
