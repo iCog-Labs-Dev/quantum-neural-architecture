@@ -1,2 +1,14 @@
 penny/
 it 
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+venv/
+*.png
+*.pdf
+results/
+cached_datasets/
+.cph
+*.json
+*.egg-info/

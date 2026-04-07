@@ -6,7 +6,7 @@ import random
 import numpy as np
 import json
 
-from ..data.parity_dataset import load_parity_dataset
+from QEAM.data.parity_dataset import load_parity_dataset
 from utility.generalization_metrics import FisherGeneralizationMetric
 
 
