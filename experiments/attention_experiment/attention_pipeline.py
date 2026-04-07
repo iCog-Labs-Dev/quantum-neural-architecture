@@ -2,7 +2,7 @@ import argparse
 import os
 import sys
 
-src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src"))
 
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
@@ -79,7 +79,7 @@ if __name__ == "__main__":
     parser.add_argument("--quantum_model_name", type=str, default="qsann_model", help="Filename for the quantum attention checkpoint")
     parser.add_argument("--classical_model_name", type=str, default="classical_attention", help="Filename for the classical attention checkpoint")
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size used by both models")
-    parser.add_argument("--num_epochs", type=int, default=10, help="Number of training epochs for both models")
+    parser.add_argument("--num_epochs", "--epoch", type=int, default=10, help="Number of training epochs for both models")
     parser.add_argument("--using_validation", action="store_true", help="Use validate.txt for model selection")
     parser.add_argument("--text", type=str, default="good movie", help="Text to classify during inference")
 
