@@ -1,2 +1,4 @@
 penny/
 it 
+.venv/
+__pycache__/        
