@@ -1,6 +1,13 @@
 import numpy as np
 import pennylane as qml
 from pennylane import numpy as pnp
+import sys
+import os
+
+# Ensure utility is importable regardless of working directory
+_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+if _root not in sys.path:
+    sys.path.insert(0, _root)
 
 
 class BornMachineTrainer:
@@ -56,11 +63,44 @@ class BornMachineTrainer:
         p_circuit = self.model.forward(params)
         eps = 1e-10
 
-        p_circuit_safe = pnp.maximum(p_circuit, eps)
+        p_circuit_safe = p_circuit + eps
         kl = pnp.sum( 
             self.target[self._mask] * (self._log_target[self._mask] - pnp.log(p_circuit_safe[self._mask]))
         )
         return kl
+
+    def compute_fisher_metrics(self, params):
+        """
+        Fisher Information metrics via parameter-shift on the KL cost.
+        Evaluates gradients at n_params random perturbations around current
+        params — gives diverse gradient vectors for a full-rank Fisher matrix.
+        Cost: 2 * n_params^2 QNode calls (called only at verbose steps).
+        """
+        import torch
+        from utility.generalization_metrics import FisherGeneralizationMetric
+
+        metric = FisherGeneralizationMetric()
+        w = np.array(params).flatten()
+        shift = np.pi / 2.0
+        n = len(w)
+        rng = np.random.default_rng(42)
+
+        # Sample n random points near current params and compute gradient at each.
+        # This gives N=n diverse gradient vectors → proper Fisher matrix spectrum.
+        noise_scale = 0.1  # small enough to stay in local landscape
+        for _ in range(n):
+            w_perturbed = w + rng.normal(0, noise_scale, size=n)
+            grad = np.zeros(n)
+            for k in range(n):
+                wp = w_perturbed.copy(); wp[k] += shift
+                wm = w_perturbed.copy(); wm[k] -= shift
+                grad[k] = (
+                    float(self.cost_function(wp.reshape(params.shape))) -
+                    float(self.cost_function(wm.reshape(params.shape)))
+                ) / 2.0
+            metric.accumulate(torch.from_numpy(grad.astype(np.float64)))
+
+        return metric.compute()
 
     def fit(self, epochs=300, conv_tol=1e-6, verbose_every=50, seed=42):
         """
@@ -81,6 +121,7 @@ class BornMachineTrainer:
         """
         params = self.model.init_params(seed=seed)
         cost_history = []
+        fisher_history = []
 
         for epoch in range(1, epochs + 1):
             params = self.optimizer.step(self.cost_function, params)
@@ -88,11 +129,21 @@ class BornMachineTrainer:
             cost_history.append(cost)
 
             if verbose_every and epoch % verbose_every == 0:
-                print(f"  Epoch {epoch:4d} | KL divergence: {cost:.6f}")
+                fisher = self.compute_fisher_metrics(params)
+                fisher_history.append(fisher)
+                ed = fisher['effective_dimension']
+                se = fisher['spectral_entropy_normalized']
+                gb = fisher['generalization_bound']
+                print(f"  Epoch {epoch:4d} | KL: {cost:.6f} | d_eff: {ed:.2f} | Entropy: {se:.3f} | Gen bound: {gb:.4f}")
 
             if len(cost_history) >= 2 and abs(cost_history[-2] - cost) < conv_tol:
                 if verbose_every:
-                    print(f"  Converged at epoch {epoch} (delta < {conv_tol})")
+                    fisher = self.compute_fisher_metrics(params)
+                    fisher_history.append(fisher)
+                    ed = fisher['effective_dimension']
+                    se = fisher['spectral_entropy_normalized']
+                    gb = fisher['generalization_bound']
+                    print(f"  Converged at epoch {epoch} (delta < {conv_tol}) | d_eff: {ed:.2f} | Entropy: {se:.3f} | Gen bound: {gb:.4f}")
                 break
 
         final_dist = np.array(self.model.forward(params))
@@ -100,5 +151,6 @@ class BornMachineTrainer:
         return {
             "params": params,
             "cost_history": cost_history,
+            "fisher_history": fisher_history,
             "final_distribution": final_dist,
         }

@@ -98,11 +98,20 @@ class RestrictedBoltzmannMachine:
         -------
         dict with keys: cost_history (KL values or empty)
         """
+        import torch
+        import sys, os
+        _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+        if _root not in sys.path:
+            sys.path.insert(0, _root)
+        from utility.generalization_metrics import FisherGeneralizationMetric
+
         rng = np.random.default_rng(0)
         n_samples = data_samples.shape[0]
         cost_history = []
+        fisher_history = []
 
         for epoch in range(1, epochs + 1):
+            metric = FisherGeneralizationMetric()
             order = rng.permutation(n_samples)
             for s in order:
                 v0 = data_samples[s]
@@ -117,19 +126,38 @@ class RestrictedBoltzmannMachine:
                 positive = np.outer(v0, self._prob_hidden_given_visible(v0))
                 negative = np.outer(vk, hk_prob)
 
-                self.W += lr * (positive - negative)
-                self.b_vis += lr * (v0 - vk)
-                self.b_hid += lr * (
-                    self._prob_hidden_given_visible(v0) - hk_prob
-                )
+                dW = lr * (positive - negative)
+                db_vis = lr * (v0 - vk)
+                db_hid = lr * (self._prob_hidden_given_visible(v0) - hk_prob)
+
+                self.W += dW
+                self.b_vis += db_vis
+                self.b_hid += db_hid
+
+                # Accumulate CD gradient as Fisher sample
+                g = np.concatenate([dW.flatten(), db_vis, db_hid])
+                metric.accumulate(torch.from_numpy(g.astype(np.float64)))
 
             if target_distribution is not None:
                 kl = self._kl_divergence(target_distribution)
                 cost_history.append(kl)
-                if verbose_every and epoch % verbose_every == 0:
-                    print(f"  Epoch {epoch:4d} | KL divergence: {kl:.6f}")
 
-        return {"cost_history": cost_history}
+                if verbose_every and epoch % verbose_every == 0:
+                    fisher = metric.compute()
+                    fisher_history.append(fisher)
+                    ed = fisher['effective_dimension']
+                    se = fisher['spectral_entropy_normalized']
+                    gb = fisher['generalization_bound']
+                    print(f"  Epoch {epoch:4d} | KL: {kl:.6f} | d_eff: {ed:.2f} | Entropy: {se:.3f} | Gen bound: {gb:.4f}")
+            elif verbose_every and epoch % verbose_every == 0:
+                fisher = metric.compute()
+                fisher_history.append(fisher)
+                ed = fisher['effective_dimension']
+                se = fisher['spectral_entropy_normalized']
+                gb = fisher['generalization_bound']
+                print(f"  Epoch {epoch:4d} | d_eff: {ed:.2f} | Entropy: {se:.3f} | Gen bound: {gb:.4f}")
+
+        return {"cost_history": cost_history, "fisher_history": fisher_history}
 
     def _kl_divergence(self, p_target):
         """KL(p_target || p_model), only over entries where p_target > 0."""
