@@ -23,6 +23,18 @@ Usage
 """
 
 import os
+import sys
+
+# Support running from within experiments/VQC_experiment or from project root
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, "../../"))
+src_path = os.path.abspath(os.path.join(current_dir, "../../src"))
+
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 import itertools
 import numpy as np
 import matplotlib.pyplot as plt
@@ -96,6 +108,7 @@ def _train_vqc_single(Xs_train, y_train, Xs_test, y_test,
         epochs=epochs,
         X_val=X_te, Y_val=Y_te,
         verbose_every=verbose_every,
+        compute_fisher=(verbose_every > 0), # Compute if verbose
     )
 
     weights = results["weights"]
@@ -113,9 +126,9 @@ def _train_vqc_single(Xs_train, y_train, Xs_test, y_test,
 # ======================================================================
 
 SEARCH_GRID = {
-    "n_layers":  [2, 4, 6],
-    "stepsize":  [0.05, 0.10, 0.20],
-    "epochs":    [80, 150],
+    "n_layers":  [3],
+    "stepsize":  [0.05],
+    "epochs":    [5], # Reduced for Fisher collection
 }
 
 
@@ -182,10 +195,10 @@ def tune_vqc(Xs_train, y_train, Xs_test, y_test):
 # ======================================================================
 
 def train_vqc_final(Xs_train, y_train, Xs_test, y_test, cfg):
-    """Re-train the VQC with the best hyperparameters, printing progress."""
+    """Re-train the VQC with the best hyperparameters, printing progress and Fisher metrics."""
     print(f"\n{'='*55}")
     print(f"  VQC Final Run  |  layers={cfg['n_layers']}  "
-          f"lr={cfg['stepsize']:.2f}  epochs={cfg['epochs']}")
+          f"lr={cfg['stepsize']:.2f}  epochs={cfg['epochs']}  |  Fisher Enabled")
     print(f"{'='*55}")
 
     acc, results, model, weights, n_params = _train_vqc_single(
@@ -193,9 +206,17 @@ def train_vqc_final(Xs_train, y_train, Xs_test, y_test, cfg):
         n_layers=cfg["n_layers"],
         epochs=cfg["epochs"],
         stepsize=cfg["stepsize"],
-        verbose_every=10,
+        verbose_every=1, # Every epoch as requested
     )
     print(f"VQC test accuracy: {acc:.2%}  ({n_params} params)")
+
+    # Save model weights
+    import torch
+    model_path = os.path.join(project_root, "results", "models", "spherical_vqc.pt")
+    os.makedirs(os.path.dirname(model_path), exist_ok=True)
+    torch.save({"weights": weights, "accuracy": acc, "config": cfg}, model_path)
+    print(f"Model saved to {model_path}")
+
     return results, model, weights, acc, n_params
 
 
@@ -203,17 +224,18 @@ def train_vqc_final(Xs_train, y_train, Xs_test, y_test, cfg):
 # 5.  Train Classical FFNN  (Cartesian x, y, z)
 # ======================================================================
 
-def train_classical(Xc_train, y_train, Xc_test, y_test, epochs=400):
+def train_classical(Xc_train, y_train, Xc_test, y_test, epochs=5):
     baseline = ClassicalBaseline(n_input=3, hidden_size=5, lr=0.01)
     n_params = baseline.param_count()
     print(f"\n{'='*55}")
-    print(f"  FFNN  |  Cartesian (x,y,z)  |  {n_params} params")
+    print(f"  FFNN  |  Cartesian (x,y,z)  |  {n_params} params  |  Fisher Enabled")
     print(f"{'='*55}")
     cls_results = baseline.fit(
         Xc_train.astype(np.float32), y_train.astype(np.float32),
         epochs=epochs,
         X_val=Xc_test.astype(np.float32), Y_val=y_test.astype(np.float32),
-        verbose_every=50,
+        verbose_every=1, # Every epoch as requested
+        compute_fisher=True,
     )
     preds = baseline.predict_classes(Xc_test.astype(np.float32))
     acc = np.mean(preds == y_test.astype(int))
@@ -279,7 +301,8 @@ def plot_results(X_cart, labels, X_sph,
                  f"{val:.1%}", ha="center", fontweight="bold")
 
     plt.tight_layout()
-    out_path = os.path.join(os.path.dirname(__file__), "sphere_moons_results.png")
+    out_path = os.path.join(project_root, "results", "figures", "sphere_moons_results.png")
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     plt.savefig(out_path, dpi=150)
     plt.show()
     print(f"Figure saved to {out_path}")
@@ -315,7 +338,8 @@ def plot_tuning_heatmap(all_results):
 
     fig.colorbar(im, ax=ax, label="Test Accuracy")
     plt.tight_layout()
-    out_path = os.path.join(os.path.dirname(__file__), "vqc_tuning_heatmap.png")
+    out_path = os.path.join(project_root, "results", "figures", "vqc_tuning_heatmap.png")
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     plt.savefig(out_path, dpi=150)
     plt.show()
     print(f"Heatmap saved to {out_path}")
@@ -329,17 +353,20 @@ def main():
     (Xs_train, Xs_test, Xc_train, Xc_test,
      y_train, y_test, X_sph, X_cart, labels) = load_data()
 
-    best_cfg, _, all_results = tune_vqc(
-        Xs_train, y_train, Xs_test, y_test
-    )
+    # Fixed config as per user request (skipping tuning)
+    best_cfg = {
+        "n_layers": 3,
+        "stepsize": 0.1,
+        "epochs": 10
+    }
 
-    plot_tuning_heatmap(all_results)
+    print(f"\nSkipping tuning. Using fixed config: {best_cfg}")
 
     vqc_res, _, _, vqc_acc, vqc_p = train_vqc_final(
         Xs_train, y_train, Xs_test, y_test, best_cfg
     )
     cls_res, _, cls_acc, cls_p = train_classical(
-        Xc_train, y_train, Xc_test, y_test
+        Xc_train, y_train, Xc_test, y_test, epochs=10
     )
 
     print(f"\n{'='*55}")

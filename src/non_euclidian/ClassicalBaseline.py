@@ -44,13 +44,60 @@ class ClassicalBaseline:
 
 
 
-    def fit(self, X_train, Y_train, epochs=200, X_val=None, Y_val=None, verbose_every=20):
+    def compute_fisher_metrics(self, X, Y):
+        """
+        Fisher Information metrics following the user's specific extraction steps.
+        """
+        from utility.generalization_metrics import FisherGeneralizationMetric
+        import torch.nn as nn
+        
+        metric = FisherGeneralizationMetric()
+        criterion = nn.BCELoss()
+        
+        # We need gradients, so use train() or just ensure model is in proper state
+        self.model.train() 
+        
+        X_t = torch.tensor(X, dtype=torch.float32)
+        Y_t = torch.tensor(Y, dtype=torch.float32)
+        
+        for i in range(len(X_t)):
+            # 1. Iterate through samples
+            x_i = X_t[i:i+1]
+            y_i = Y_t[i:i+1]
+            
+            # 1. Forward pass
+            output = self.model(x_i)
+            loss = criterion(output, y_i)
+            
+            # 1. Backprop
+            self.model.zero_grad() # 4. Reset gradients (important before backward)
+            loss.backward()
+            
+            # 2. Extract Gradients
+            grads = []
+            for param in self.model.parameters():
+                if param.grad is not None:
+                    grads.append(param.grad.view(-1))
+            
+            if grads:
+                # 2. Flatten and concatenate
+                g_i = torch.cat(grads)
+                # 3. Accumulate outer product
+                metric.accumulate(g_i)
+                
+            # 4. Reset Gradients (CRITICAL after sample)
+            self.model.zero_grad()
+                
+        return metric.compute()
+
+
+    def fit(self, X_train, Y_train, epochs=200, X_val=None, Y_val=None, verbose_every=20, compute_fisher=False):
         """
         Train the network and return loss histories.
 
         Returns
         -------
-        dict  {train_history, val_history}
+        dict  {train_history, val_history, fisher_history}
         """
         X_t = torch.tensor(X_train, dtype=torch.float32)
         Y_t = torch.tensor(Y_train, dtype=torch.float32)
@@ -60,6 +107,7 @@ class ClassicalBaseline:
 
         train_history = []
         val_history = []
+        fisher_history = []
 
         for epoch in range(epochs):
             self.model.train()
@@ -74,13 +122,30 @@ class ClassicalBaseline:
                 val_loss = self._eval_loss(X_val, Y_val, criterion)
                 val_history.append(val_loss)
 
+            # Fisher metrics
+            current_fisher = None
+            if compute_fisher and verbose_every and (epoch + 1) % verbose_every == 0:
+                current_fisher = self.compute_fisher_metrics(X_train, Y_train)
+                fisher_history.append(current_fisher)
+
             if verbose_every and (epoch + 1) % verbose_every == 0:
                 msg = f"Epoch {epoch + 1:4d} | Train loss: {loss.item():.5f}"
                 if val_history:
                     msg += f" | Val loss: {val_history[-1]:.5f}"
+                
+                if current_fisher:
+                    ed = current_fisher['effective_dimension']
+                    se = current_fisher['spectral_entropy_normalized']
+                    gb = current_fisher['generalization_bound']
+                    msg += f" | d_eff: {ed:.2f} | Entropy: {se:.3f} | Gen bound: {gb:.4f}"
+                
                 print(msg)
 
-        return {"train_history": train_history, "val_history": val_history}
+        return {
+            "train_history": train_history, 
+            "val_history": val_history,
+            "fisher_history": fisher_history
+        }
 
 
     def predict(self, X):
