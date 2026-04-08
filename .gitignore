@@ -1,4 +1,13 @@
 penny/
-it 
 .venv/
-__pycache__/        
+
+# Python cache — all levels
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Egg info
+*.egg-info/
+**/*.egg-info/

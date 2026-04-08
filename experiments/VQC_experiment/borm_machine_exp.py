@@ -9,16 +9,7 @@ End-to-end experiment:
 """
 
 import os
-import sys
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, "../../"))
-src_path = os.path.abspath(os.path.join(current_dir, "../../src"))
-
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
 
 import numpy as np
 import matplotlib.pyplot as plt

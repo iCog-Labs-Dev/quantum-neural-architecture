@@ -1,4 +1,6 @@
 import os
+from utility import FIGURES_DIR, MODELS_DIR
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -120,9 +122,11 @@ def plot_convergence(cost_history, offset):
     plt.title("QAOA Convergence")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(os.path.join(os.path.dirname(__file__), "qaoa_convergence.png"), dpi=150)
+    out_path = FIGURES_DIR / "qaoa_convergence.png"
+    os.makedirs(out_path.parent, exist_ok=True)
+    plt.savefig(out_path, dpi=150)
     plt.show()
-    print("Figure saved to qaoa_convergence.png")
+    print(f"Figure saved to {out_path}")
 
 
 # ======================================================================
@@ -138,6 +142,12 @@ def main():
     result, offset = run_qaoa(Q, p=2, epochs=100, stepsize=0.3)
 
     selected = interpret(result, offset, lattice)
+
+    import torch
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    torch.save({"solution": result["solution_bitstring"], "params": result.get("params")},
+               MODELS_DIR / "qaoa_solution.pt")
+    print(f"Model saved to {MODELS_DIR / 'qaoa_solution.pt'}")
 
     plot_convergence(result["cost_history"], offset)
 

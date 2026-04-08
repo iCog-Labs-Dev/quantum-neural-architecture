@@ -23,17 +23,7 @@ Usage
 """
 
 import os
-import sys
-
-# Support running from within experiments/VQC_experiment or from project root
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, "../../"))
-src_path = os.path.abspath(os.path.join(current_dir, "../../src"))
-
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+from utility.paths import FIGURES_DIR, MODELS_DIR
 
 import itertools
 import numpy as np
@@ -212,8 +202,8 @@ def train_vqc_final(Xs_train, y_train, Xs_test, y_test, cfg):
 
     # Save model weights
     import torch
-    model_path = os.path.join(project_root, "results", "models", "spherical_vqc.pt")
-    os.makedirs(os.path.dirname(model_path), exist_ok=True)
+    model_path = MODELS_DIR / "spherical_vqc.pt"
+    os.makedirs(model_path.parent, exist_ok=True)
     torch.save({"weights": weights, "accuracy": acc, "config": cfg}, model_path)
     print(f"Model saved to {model_path}")
 
@@ -301,8 +291,8 @@ def plot_results(X_cart, labels, X_sph,
                  f"{val:.1%}", ha="center", fontweight="bold")
 
     plt.tight_layout()
-    out_path = os.path.join(project_root, "results", "figures", "sphere_moons_results.png")
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    out_path = FIGURES_DIR / "sphere_moons_results.png"
+    os.makedirs(out_path.parent, exist_ok=True)
     plt.savefig(out_path, dpi=150)
     plt.show()
     print(f"Figure saved to {out_path}")
@@ -338,8 +328,8 @@ def plot_tuning_heatmap(all_results):
 
     fig.colorbar(im, ax=ax, label="Test Accuracy")
     plt.tight_layout()
-    out_path = os.path.join(project_root, "results", "figures", "vqc_tuning_heatmap.png")
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    out_path = FIGURES_DIR / "vqc_tuning_heatmap.png"
+    os.makedirs(out_path.parent, exist_ok=True)
     plt.savefig(out_path, dpi=150)
     plt.show()
     print(f"Heatmap saved to {out_path}")

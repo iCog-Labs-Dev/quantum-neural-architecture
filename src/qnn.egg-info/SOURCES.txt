@@ -38,3 +38,6 @@ src/vqc_fnn/Embedding.py
 src/vqc_fnn/Optimizer.py
 src/vqc_fnn/VQCModel.py
 src/vqc_fnn/__init__.py
+utility/__init__.py
+utility/generalization_metrics.py
+utility/paths.py

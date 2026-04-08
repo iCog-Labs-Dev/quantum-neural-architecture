@@ -1,0 +1,3 @@
+from utility.paths import PROJECT_ROOT, RESULTS_DIR, FIGURES_DIR, MODELS_DIR
+
+__all__ = ["PROJECT_ROOT", "RESULTS_DIR", "FIGURES_DIR", "MODELS_DIR"]
