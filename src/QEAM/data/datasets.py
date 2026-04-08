@@ -24,23 +24,21 @@ class TextClassificationDataset(Dataset):
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         tokens = self.tokenizer(self.texts[idx])
 
-        
         if hasattr(tokens, "ids"): 
             tokens = tokens.ids
         elif isinstance(tokens, dict) and "input_ids" in tokens:
             tokens = tokens["input_ids"]
         tokens = list(tokens)
 
-       
         tokens = tokens[:self.max_seq_len]
         padding_len = self.max_seq_len - len(tokens)
         tokens = tokens + [0] * padding_len  
 
-        return {
-            "input_ids": torch.tensor(tokens, dtype=torch.long),
-            "labels": torch.tensor(self.labels[idx], dtype=torch.long)
-        }
+        input_tensor = torch.tensor(tokens, dtype=torch.long)
+        label_tensor = torch.tensor(self.labels[idx], dtype=torch.long)
 
+        # Return a tuple, NOT a dict
+        return input_tensor, label_tensor
 
 
 def get_tokenizer(max_seq_len: int) -> Callable:

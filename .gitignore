@@ -1,4 +1,5 @@
 penny/
+<<<<<<< feature/vqc-testing
 .venv/
 
 # Python cache — all levels
@@ -17,3 +18,18 @@ src/**/models/
 
 # OS
 .DS_Store
+=======
+it 
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+venv/
+*.png
+*.pdf
+results/
+cached_datasets/
+.cph
+*.json
+*.egg-info/
+>>>>>>> main
