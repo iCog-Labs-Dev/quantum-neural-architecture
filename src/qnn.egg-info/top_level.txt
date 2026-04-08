@@ -1,7 +1,0 @@
-QAOA
-born_machine
-eigensolver
-non_euclidian
-qasnn
-utility
-vqc_fnn
