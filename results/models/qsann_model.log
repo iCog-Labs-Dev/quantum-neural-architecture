@@ -1,6 +1,0 @@
-2026-03-26 01:02:29,243 INFO Iter:    0, Train loss: 0.25004, acc: 43.75%; Test loss: 0.00965, acc: 10.89%
-2026-03-26 01:06:09,111 INFO Iter:   10, Train loss: 0.23810, acc: 53.12%; Test loss: 0.00884, acc: 16.83%
-2026-03-26 01:09:30,614 INFO Iter:   20, Train loss: 0.14602, acc: 93.75%; Test loss: 0.00852, acc: 30.69%
-2026-03-26 01:13:18,517 INFO Iter:   30, Train loss: 0.07736, acc: 100.00%; Test loss: 0.01037, acc: 53.47%
-2026-03-26 01:15:24,486 INFO The training of the model has been finished.
-2026-03-26 01:16:25,072 INFO Test loss: 0.01241, acc: 66.34%

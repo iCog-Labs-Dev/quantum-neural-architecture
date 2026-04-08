@@ -1,14 +1,19 @@
 penny/
-it 
+.venv/
+
+# Python cache — all levels
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
-.DS_Store
-venv/
-*.png
-*.pdf
-results/
-cached_datasets/
-.cph
-*.json
+*.pyd
+
+# Egg info
 *.egg-info/
+**/*.egg-info/
+
+# Stale model artifacts inside src/
+src/**/models/
+
+# OS
+.DS_Store

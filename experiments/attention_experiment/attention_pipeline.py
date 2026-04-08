@@ -1,19 +1,14 @@
 import argparse
 import os
-import sys
 
-src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
-
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
-
+from utility import MODELS_DIR, LOGS_DIR
 from classical_example import inference as run_classical_inference
 from classical_example import train as run_classical_train
 from qasnn.run_attention import run_q_attention
 
 
 def run_pipeline(args: argparse.Namespace) -> None:
-    metrics_log = args.metrics_log or os.path.join(os.path.dirname(__file__), "example_log.csv")
+    metrics_log = args.metrics_log or str(LOGS_DIR / "pipeline_log.csv")
     selected_models = ["quantum", "classical"] if args.model == "both" else [args.model]
 
     for model_type in selected_models:
@@ -68,12 +63,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("--mode", type=str, default="train", choices=["train", "inference"])
     parser.add_argument("--model", type=str, default="both", choices=["quantum", "classical", "both"])
-    parser.add_argument("--dataset", type=str, required=True, help="Directory containing train.txt, test.txt, and vocab.txt")
-    parser.add_argument("--saved_dir", type=str, default="./models/", help="Directory to save trained models")
+    parser.add_argument("--dataset", type=str, default=str(MODELS_DIR.parent.parent / "datasets"), help="Directory containing train.txt, test.txt, and vocab.txt")
+    parser.add_argument("--saved_dir", type=str, default=str(MODELS_DIR), help="Directory to save trained models")
     parser.add_argument(
         "--metrics_log",
         type=str,
-        default=os.path.join(os.path.dirname(__file__), "example_log.csv"),
+        default=str(LOGS_DIR / "pipeline_log.csv"),
         help="CSV file used to store metrics for all pipeline runs",
     )
     parser.add_argument("--quantum_model_name", type=str, default="qsann_model", help="Filename for the quantum attention checkpoint")
