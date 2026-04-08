@@ -1,13 +1,14 @@
 penny/
-.venv/
-
-# Python cache — all levels
+it 
 __pycache__/
-**/__pycache__/
 *.pyc
 *.pyo
-*.pyd
-
-# Egg info
+.DS_Store
+venv/
+*.png
+*.pdf
+results/
+cached_datasets/
+.cph
+*.json
 *.egg-info/
-**/*.egg-info/

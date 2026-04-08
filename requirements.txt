@@ -41,5 +41,6 @@ torch==2.10.0
 typing_extensions==4.15.0
 tzdata==2025.3
 urllib3==2.6.3
-tqdm
 gast == 0.7.0
+
+-e .
