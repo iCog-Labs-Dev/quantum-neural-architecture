@@ -29,3 +29,4 @@ timestamp,epoch,iteration,split,loss,accuracy,learning_rate,best_model,num_sampl
 2026-03-26T01:16:25,9,40,train,0.5873042404061497,0.7821782178217822,0.001,False,101,"{""model"": ""classical_attention""}"
 2026-03-26T01:16:25,9,40,test,0.67035045187072,0.6138613861386139,0.001,True,101,"{""model"": ""classical_attention""}"
 2026-03-26T01:16:25,9,40,final_test,0.67035045187072,0.6138613861386139,0.001,True,101,"{""model"": ""classical_attention""}"
+0,0,train,0.249922,0.593750,0.01,0,32,{'model': 'quantum_attention'}

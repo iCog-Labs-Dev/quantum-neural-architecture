@@ -1,4 +1,24 @@
 penny/
+<<<<<<< feature/vqc-testing
+.venv/
+
+# Python cache — all levels
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Egg info
+*.egg-info/
+**/*.egg-info/
+
+# Stale model artifacts inside src/
+src/**/models/
+
+# OS
+.DS_Store
+=======
 it 
 __pycache__/
 *.pyc
@@ -12,3 +32,4 @@ cached_datasets/
 .cph
 *.json
 *.egg-info/
+>>>>>>> main

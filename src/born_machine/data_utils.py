@@ -33,7 +33,7 @@ def bars_and_stripes(grid_size=2):
         cols_ok = all(
             len(set(grid[:, c])) == 1 for c in range(grid_size)
         )
-        if rows_ok and cols_ok:
+        if rows_ok or cols_ok:
             idx = int("".join(str(b) for b in bits), 2)
             valid_indices.append(idx)
 

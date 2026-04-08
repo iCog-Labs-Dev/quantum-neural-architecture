@@ -11,6 +11,8 @@ Usage
 """
 
 import os
+from utility import FIGURES_DIR, MODELS_DIR
+
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.datasets import make_circles
@@ -153,9 +155,11 @@ def plot_results(X, y, vqc_results, cls_results, vqc_acc, cls_acc):
                 f"{val:.1%}", ha="center", fontweight="bold")
 
     plt.tight_layout()
-    plt.savefig(os.path.join(os.path.dirname(__file__), "circles_results.png"), dpi=150)
+    out_path = FIGURES_DIR / "circles_results.png"
+    os.makedirs(out_path.parent, exist_ok=True)
+    plt.savefig(out_path, dpi=150)
     plt.show()
-    print("Figure saved to circles_results.png")
+    print(f"Figure saved to {out_path}")
 
 
 # ======================================================================
@@ -167,8 +171,14 @@ def main():
      Xb_train, Xb_test, yb_train, yb_test,
      X_full, y_full, _) = load_data()
 
-    vqc_res, _, _, vqc_acc = train_vqc(Xb_train, yb_train, Xb_test, yb_test)
-    cls_res, _, cls_acc = train_classical(X_train, y_train, X_test, y_test)
+    vqc_res, model, weights, vqc_acc = train_vqc(Xb_train, yb_train, Xb_test, yb_test)
+    cls_res, baseline, cls_acc = train_classical(X_train, y_train, X_test, y_test)
+
+    import torch
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    torch.save({"weights": weights, "accuracy": vqc_acc}, MODELS_DIR / "circles_vqc.pt")
+    torch.save(baseline.model.state_dict(), MODELS_DIR / "circles_ffnn.pt")
+    print(f"Models saved to {MODELS_DIR}")
 
     print(f"\n{'='*40}")
     print(f"VQC accuracy:  {vqc_acc:.2%}")

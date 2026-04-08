@@ -45,7 +45,7 @@ class Trainer:
 
     def cost_function(self, weights, X, Y):
         """Mean Squared Error over the given samples."""
-        predictions = np.array([self.model.forward(x, weights) for x in X])
+        predictions = np.stack([self.model.forward(x, weights) for x in X])
         return np.mean((predictions - Y) ** 2)
 
     # Training loop

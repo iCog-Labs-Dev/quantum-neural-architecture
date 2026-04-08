@@ -9,6 +9,8 @@ End-to-end experiment:
 """
 
 import os
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -80,6 +82,13 @@ def main():
     )
     born_dist = result_born["final_distribution"]
 
+    # Save Born Machine params
+    import torch
+    model_path = os.path.join(project_root, "results", "models", "born_machine.pt")
+    os.makedirs(os.path.dirname(model_path), exist_ok=True)
+    torch.save({"params": result_born["params"], "final_kl": result_born["cost_history"][-1]}, model_path)
+    print(f"Model saved to {model_path}")
+
     # 3. RBM with matched parameter count
     print("\n" + "-" * 60)
     print("Training Restricted Boltzmann Machine")
@@ -149,7 +158,7 @@ def _plot_kl_convergence(born_history, rbm_history):
     ax.set_yscale("log")
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig(os.path.join(os.path.dirname(__file__), "kl_convergence.png"), dpi=150)
+    plt.savefig(os.path.join(project_root, "results", "figures", "kl_convergence.png"), dpi=150)
     plt.show()
 
 
@@ -173,7 +182,7 @@ def _plot_distributions(target, born_dist, rbm_dist, valid_idx, n_bits):
     ax.set_title("Learned Distributions vs Target (2x2 Bars-and-Stripes)")
     ax.legend()
     plt.tight_layout()
-    plt.savefig(os.path.join(os.path.dirname(__file__), "distributions.png"), dpi=150)
+    plt.savefig(os.path.join(project_root, "results", "figures", "distributions.png"), dpi=150)
     plt.show()
 
 
@@ -201,7 +210,7 @@ def _plot_sample_grids(born_params, model, rbm, grid_size):
             axes[1, i].set_ylabel("RBM", fontsize=10)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(os.path.dirname(__file__), "samples.png"), dpi=150)
+    plt.savefig(os.path.join(project_root, "results", "figures", "samples.png"), dpi=150)
     plt.show()
 
 

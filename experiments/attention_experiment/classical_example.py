@@ -1,11 +1,11 @@
 import argparse
 import os
-import sys
 from typing import List, Tuple
 
 import torch
 import torch.nn as nn
 
+from utility import MODELS_DIR, LOGS_DIR
 from qasnn.attention.dataset import TextDataset, build_iter, deal_vocab
 from qasnn.utils.logger import initialize_metrics_logger, log_metrics
 
@@ -222,13 +222,13 @@ def inference(dataset: str, saved_dir: str, model_name: str, text: str, embeddin
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Classical baseline for the attention dataset")
     parser.add_argument("--mode", type=str, default="train", choices=["train", "inference"])
-    parser.add_argument("--dataset", type=str, required=True, help="Directory containing train.txt, test.txt, and vocab.txt")
+    parser.add_argument("--dataset", type=str, default=str(MODELS_DIR.parent.parent / "datasets"), help="Directory containing train.txt, test.txt, and vocab.txt")
     parser.add_argument("--model_name", type=str, default=MODEL_TAG, help="Name for the saved model")
-    parser.add_argument("--saved_dir", type=str, default="./models/", help="Directory to save the trained model")
+    parser.add_argument("--saved_dir", type=str, default=str(MODELS_DIR), help="Directory to save the trained model")
     parser.add_argument(
         "--metrics_log",
         type=str,
-        default=os.path.join(os.path.dirname(__file__), "example_log.csv"),
+        default=str(LOGS_DIR / "classical_example_log.csv"),
         help="CSV file used to store training loss, accuracy, and evaluation metrics",
     )
     parser.add_argument("--embedding_dim", type=int, default=64, help="Embedding size for token representations")

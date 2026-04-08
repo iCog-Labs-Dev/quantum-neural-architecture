@@ -18,6 +18,8 @@ Usage
 """
 
 import os
+from utility import FIGURES_DIR, MODELS_DIR
+
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
@@ -96,7 +98,7 @@ def train_vqc(a_train, y_train, a_test, y_test,
     acc = np.mean(preds_class == y_test.astype(int))
     print(f"VQC test accuracy: {acc:.2%}")
 
-    return results, acc
+    return results, model, weights, acc
 
 
 # ======================================================================
@@ -185,9 +187,11 @@ def plot_results(hours, labels, vqc_res, raw_res, sc_res,
                 f"{val:.1%}", ha="center", fontweight="bold")
 
     plt.tight_layout()
-    plt.savefig(os.path.join(os.path.dirname(__file__), "cyclical_results.png"), dpi=150)
+    out_path = FIGURES_DIR / "cyclical_results.png"
+    os.makedirs(out_path.parent, exist_ok=True)
+    plt.savefig(out_path, dpi=150)
     plt.show()
-    print("Figure saved to cyclical_results.png")
+    print(f"Figure saved to {out_path}")
 
 
 # ======================================================================
@@ -198,9 +202,14 @@ def main():
     (h_train, h_test, a_train, a_test, sc_train, sc_test,
      y_train, y_test, hours, labels, angles) = load_data()
 
-    vqc_res, vqc_acc = train_vqc(a_train, y_train, a_test, y_test)
+    vqc_res, model, weights, vqc_acc = train_vqc(a_train, y_train, a_test, y_test)
     raw_res, raw_acc = train_classical_raw(h_train, y_train, h_test, y_test)
     sc_res, sc_acc = train_classical_sincos(sc_train, y_train, sc_test, y_test)
+
+    import torch
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    torch.save({"weights": weights, "accuracy": vqc_acc}, MODELS_DIR / "cyclical_vqc.pt")
+    print(f"Models saved to {MODELS_DIR}")
 
     print(f"\n{'='*50}")
     print(f"VQC (cyclical RZ)         accuracy: {vqc_acc:.2%}")
