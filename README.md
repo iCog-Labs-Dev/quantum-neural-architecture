@@ -62,6 +62,7 @@ quantum-neural-architecture/
 ├── .gitignore
 ├── setup.py                  # Local package installation logic
 └── requirements.txt          # Project dependencies
+```
 
 ## 🛠️ Installation
 
@@ -70,7 +71,7 @@ We strongly recommend using an isolated Python environment (e.g., `venv` or `con
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/quantum-neural-architecture.git
+git clone https://github.com/iCog-Labs-Dev/quantum-neural-architecture.git
 cd quantum-neural-architecture
 ```
 
